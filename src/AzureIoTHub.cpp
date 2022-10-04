@@ -27,25 +27,32 @@ void AzureIoTHub::begin(String cs){
 	mqtt.setServer(cloud.host, 8883);
 }
 
- void AzureIoTHub::setCallback(GeneralFunction _az){
-	 mqtt.setCallback(this->callback);//Azureからのデータを受けた時コールバックする
-	 az = _az;
- }
+void AzureIoTHub::setCallback(GeneralFunction _az){
+	mqtt.setCallback(this->callback);// When getting messages from Azure, registered callback function will handle them.
+	az = _az;
+}
+
 bool AzureIoTHub::push(DataElement *data){
 	char* sendData = data->toCharArray();
 	mqtt.publish(cloud.postUrl, sendData);
 	free(sendData);
+	return true; // must return value (may cause an exception)
 }
 
 bool AzureIoTHub::connect()
 {
-	
+	// SKIP SSL check.
+	//   Note: unsecure use is not recommended. Use the followings instead to check server finger print.
+	//     espClient.allowSelfSignedCerts();
+	//     espClient.setFingerprint("4D:FF:....");
+	espClient.setInsecure(); 
+
 	while (!mqtt.connected()) {
 		Serial.print(F("Attempting MQTT connection..."));
 		if (mqtt.connect(cloud.id, cloud.hubUser, cloud.fullSas)) {
 			Serial.println(F("connected"));
 			// ... and resubscribe
-			mqtt.subscribe(cloud.getUrl);//Azureからのデータを監視する
+			mqtt.subscribe(cloud.getUrl);// Handle data from Azure
 		}
 		else {
 			Serial.print(F("failed, rc="));
@@ -56,6 +63,8 @@ bool AzureIoTHub::connect()
 		}
 	}
 	mqtt.loop();
+	
+	return true; // must return value (may cause an exception)
 }
 
 const char * AzureIoTHub::GetStringValue(String value){
